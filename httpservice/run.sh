@@ -1,0 +1,6 @@
+export MULTIPLY_SERVICE_NAME="MultiplyService"
+export MULTIPLY_SERVICE_VERSION="1.0"
+export MULTIPLY_SERVICE_PORT="7777"
+export DISCOVERY="172.17.0.3:8500"
+
+go run main.go

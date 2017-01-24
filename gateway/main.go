@@ -1,43 +1,32 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
-
-	"errors"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gkarlik/quark"
 	auth "github.com/gkarlik/quark/auth/jwt"
 	"github.com/gkarlik/quark/logger"
-	"github.com/gkarlik/quark/logger/logrus"
 	"github.com/gkarlik/quark/ratelimiter"
 	sd "github.com/gkarlik/quark/service/discovery"
 	"github.com/gkarlik/quark/service/discovery/consul"
 	"github.com/gorilla/mux"
-	"io/ioutil"
 )
 
 type gateway struct {
 	*quark.ServiceBase
 }
 
-func getEnvVar(key string) string {
-	v := os.Getenv(key)
-	if v == "" {
-		panic(fmt.Sprintf("Environment variable %q not set!", key))
-	}
-	return v
-}
-
 func createGateway() *gateway {
-	name := getEnvVar("GATEWAY_NAME")
-	version := getEnvVar("GATEWAY_VERSION")
-	gp := getEnvVar("GATEWAY_PORT")
-	discovery := getEnvVar("DISCOVERY")
+	name := quark.GetEnvVar("GATEWAY_NAME")
+	version := quark.GetEnvVar("GATEWAY_VERSION")
+	gp := quark.GetEnvVar("GATEWAY_PORT")
+	discovery := quark.GetEnvVar("DISCOVERY")
 
 	port, err := strconv.Atoi(gp)
 	if err != nil {
@@ -54,7 +43,6 @@ func createGateway() *gateway {
 			quark.Name(name),
 			quark.Version(version),
 			quark.Address(addr),
-			quark.Logger(logrus.NewLogger()),
 			quark.Discovery(consul.NewServiceDiscovery(discovery))),
 	}
 }
@@ -62,7 +50,7 @@ func createGateway() *gateway {
 var srv = createGateway()
 
 func main() {
-	secret := getEnvVar("GATEWAY_SECRET")
+	secret := quark.GetEnvVar("GATEWAY_SECRET")
 	am := auth.NewAuthenticationMiddleware(
 		auth.WithSecret(secret),
 		auth.WithContextKey("USER_KEY"),
@@ -91,6 +79,8 @@ func main() {
 	}, "Service initialized. Listening for incomming connections")
 
 	http.ListenAndServe(srv.Info().Address.String(), r)
+
+	srv.Dispose()
 }
 
 func sumHandler(w http.ResponseWriter, r *http.Request) {

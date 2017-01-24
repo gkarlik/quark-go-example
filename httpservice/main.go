@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"github.com/gkarlik/quark"
 	"github.com/gkarlik/quark/logger"
-	"github.com/gkarlik/quark/logger/logrus"
 	sd "github.com/gkarlik/quark/service/discovery"
 	"github.com/gkarlik/quark/service/discovery/consul"
 	"github.com/gorilla/mux"
 	"net/http"
-	"os"
 	"strconv"
 )
 
@@ -17,19 +15,11 @@ type multiplyService struct {
 	*quark.ServiceBase
 }
 
-func getEnvVar(key string) string {
-	v := os.Getenv(key)
-	if v == "" {
-		panic(fmt.Sprintf("Environment variable %q not set!", key))
-	}
-	return v
-}
-
 func createMultiplyService() *multiplyService {
-	name := getEnvVar("MULTIPLY_SERVICE_NAME")
-	version := getEnvVar("MULTIPLY_SERVICE_VERSION")
-	gp := getEnvVar("MULTIPLY_SERVICE_PORT")
-	discovery := getEnvVar("DISCOVERY")
+	name := quark.GetEnvVar("MULTIPLY_SERVICE_NAME")
+	version := quark.GetEnvVar("MULTIPLY_SERVICE_VERSION")
+	gp := quark.GetEnvVar("MULTIPLY_SERVICE_PORT")
+	discovery := quark.GetEnvVar("DISCOVERY")
 
 	port, err := strconv.Atoi(gp)
 	if err != nil {
@@ -46,7 +36,6 @@ func createMultiplyService() *multiplyService {
 			quark.Name(name),
 			quark.Version(version),
 			quark.Address(addr),
-			quark.Logger(logrus.NewLogger()),
 			quark.Discovery(consul.NewServiceDiscovery(discovery))),
 	}
 }
@@ -67,6 +56,8 @@ func main() {
 	}, "Service initialized. Listening for incomming connections")
 
 	http.ListenAndServe(srv.Info().Address.String(), r)
+
+	srv.Dispose()
 }
 
 func mulitplyHandler(w http.ResponseWriter, r *http.Request) {

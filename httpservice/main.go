@@ -2,13 +2,17 @@ package main
 
 import (
 	"fmt"
-	"github.com/gkarlik/quark"
-	"github.com/gkarlik/quark/logger"
-	sd "github.com/gkarlik/quark/service/discovery"
-	"github.com/gkarlik/quark/service/discovery/consul"
-	"github.com/gorilla/mux"
 	"net/http"
 	"strconv"
+
+	"github.com/gkarlik/quark"
+	"github.com/gkarlik/quark/logger"
+	"github.com/gkarlik/quark/metrics/influxdb"
+	sd "github.com/gkarlik/quark/service/discovery"
+	"github.com/gkarlik/quark/service/discovery/consul"
+	"github.com/gkarlik/quark/service/trace/zipkin"
+	"github.com/gorilla/mux"
+	"github.com/opentracing/opentracing-go"
 )
 
 type multiplyService struct {
@@ -20,6 +24,9 @@ func createMultiplyService() *multiplyService {
 	version := quark.GetEnvVar("MULTIPLY_SERVICE_VERSION")
 	gp := quark.GetEnvVar("MULTIPLY_SERVICE_PORT")
 	discovery := quark.GetEnvVar("DISCOVERY")
+	mAddr := quark.GetEnvVar("METRICS_ADDRES")
+	mDatabase := quark.GetEnvVar("METRICS_DATABASE")
+	tAddr := quark.GetEnvVar("TRACER")
 
 	port, err := strconv.Atoi(gp)
 	if err != nil {
@@ -36,7 +43,13 @@ func createMultiplyService() *multiplyService {
 			quark.Name(name),
 			quark.Version(version),
 			quark.Address(addr),
-			quark.Discovery(consul.NewServiceDiscovery(discovery))),
+			quark.Discovery(consul.NewServiceDiscovery(discovery)),
+			quark.Metrics(influxdb.NewMetricsReporter(mAddr,
+				influxdb.Database(mDatabase),
+				influxdb.Username(""),
+				influxdb.Password(""),
+			)),
+			quark.Tracer(zipkin.NewTracer(tAddr, name, addr))),
 	}
 }
 
@@ -45,6 +58,10 @@ var srv = createMultiplyService()
 func main() {
 	err := srv.Discovery().RegisterService(sd.WithInfo(srv.Info()))
 	if err != nil {
+		srv.Log().ErrorWithFields(logger.LogFields{
+			"err": err,
+		}, "Cannot register service")
+
 		panic("Cannot register service!")
 	}
 
@@ -61,6 +78,9 @@ func main() {
 }
 
 func mulitplyHandler(w http.ResponseWriter, r *http.Request) {
+	span, _ := srv.Tracer().ExtractSpan("mul_handler", opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
+	defer span.Finish()
+
 	srv.Log().Info("Handling multiply request")
 
 	vars := mux.Vars(r)

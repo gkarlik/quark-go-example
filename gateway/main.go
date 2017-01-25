@@ -12,10 +12,14 @@ import (
 	"github.com/gkarlik/quark"
 	auth "github.com/gkarlik/quark/auth/jwt"
 	"github.com/gkarlik/quark/logger"
+	"github.com/gkarlik/quark/metrics"
+	"github.com/gkarlik/quark/metrics/influxdb"
 	"github.com/gkarlik/quark/ratelimiter"
 	sd "github.com/gkarlik/quark/service/discovery"
 	"github.com/gkarlik/quark/service/discovery/consul"
+	"github.com/gkarlik/quark/service/trace/zipkin"
 	"github.com/gorilla/mux"
+	"github.com/opentracing/opentracing-go"
 )
 
 type gateway struct {
@@ -27,6 +31,9 @@ func createGateway() *gateway {
 	version := quark.GetEnvVar("GATEWAY_VERSION")
 	gp := quark.GetEnvVar("GATEWAY_PORT")
 	discovery := quark.GetEnvVar("DISCOVERY")
+	mAddr := quark.GetEnvVar("METRICS_ADDRES")
+	mDatabase := quark.GetEnvVar("METRICS_DATABASE")
+	tAddr := quark.GetEnvVar("TRACER")
 
 	port, err := strconv.Atoi(gp)
 	if err != nil {
@@ -43,7 +50,13 @@ func createGateway() *gateway {
 			quark.Name(name),
 			quark.Version(version),
 			quark.Address(addr),
-			quark.Discovery(consul.NewServiceDiscovery(discovery))),
+			quark.Discovery(consul.NewServiceDiscovery(discovery)),
+			quark.Metrics(influxdb.NewMetricsReporter(mAddr,
+				influxdb.Database(mDatabase),
+				influxdb.Username(""),
+				influxdb.Password(""),
+			)),
+			quark.Tracer(zipkin.NewTracer(tAddr, name, addr))),
 	}
 }
 
@@ -84,6 +97,30 @@ func main() {
 }
 
 func sumHandler(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	defer func() {
+		srv.Log().Info("Sending metric")
+
+		m := metrics.Metric{
+			Date: time.Now(),
+			Name: "response_time",
+			Tags: map[string]string{"service": "gateway"},
+			Values: map[string]interface{}{
+				"value": time.Now().UnixNano() - start.UnixNano(),
+			},
+		}
+
+		err := srv.Metrics().Report([]metrics.Metric{m})
+		if err != nil {
+			srv.Log().InfoWithFields(logger.LogFields{
+				"error": err,
+			}, "Error reporting metrics")
+		}
+	}()
+
+	span := srv.Tracer().StartSpan("sum_get_request")
+	defer span.Finish()
+
 	vars := mux.Vars(r)
 
 	a, _ := strconv.Atoi(vars["a"])
@@ -96,6 +133,9 @@ func sumHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func multiplyHandler(w http.ResponseWriter, r *http.Request) {
+	span := srv.Tracer().StartSpan("mul_get_request")
+	defer span.Finish()
+
 	vars := mux.Vars(r)
 
 	a, _ := strconv.Atoi(vars["a"])
@@ -110,6 +150,9 @@ func multiplyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if url != nil {
 		req, _ := http.NewRequest("GET", fmt.Sprintf("http://%s/multiply/%d/%d", url.String(), a, b), nil)
+
+		srv.Tracer().InjectSpan(span, opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(req.Header))
+
 		client := http.Client{
 			Timeout: 10 * time.Second,
 		}

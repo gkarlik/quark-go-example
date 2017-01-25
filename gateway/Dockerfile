@@ -11,4 +11,9 @@ ENV GATEWAY_PORT 9999
 ENV GATEWAY_SECRET mysecret
 ENV DISCOVERY consul:8500
 
+ENV METRICS_ADDRES http://influxdb:8086
+ENV METRICS_DATABASE test
+
+ENV TRACER http://zipkin:9411/api/v1/spans
+
 ENTRYPOINT go run main.go

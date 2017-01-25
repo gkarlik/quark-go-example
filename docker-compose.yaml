@@ -1,0 +1,26 @@
+version: '2'
+services:
+    gateway:
+        build: ./gateway
+        ports:
+            - "9999:9999"
+
+    httpservice:
+        build: ./httpservice
+        ports:
+            - "7777:7777"
+
+    consul:
+        image: consul
+        ports:
+            - "8500:8500"
+
+    influxdb: 
+        image: influxdb
+        ports:
+            - "8086:8086"
+
+    zipkin:
+        image: openzipkin/zipkin
+        ports:
+            - "9411:9411"

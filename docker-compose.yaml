@@ -10,6 +10,11 @@ services:
         ports:
             - "7777:7777"
 
+    rpcservice:
+        build: ./rpcservice
+        ports:
+            - "6666:6666"
+
     consul:
         image: consul
         ports:

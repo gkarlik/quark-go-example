@@ -2,8 +2,8 @@ FROM carlos
 
 RUN go get github.com/gorilla/mux
 
-COPY . /go/mulservice
-WORKDIR /go/mulservice
+COPY . /go/src/github.com/gkarlik/quark-example/httpservice
+WORKDIR /go/src/github.com/gkarlik/quark-example/httpservice
 
 ENV MULTIPLY_SERVICE_NAME MultiplyService
 ENV MULTIPLY_SERVICE_VERSION 1.0

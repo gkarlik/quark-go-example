@@ -3,23 +3,26 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gkarlik/quark"
+	proxy "github.com/gkarlik/quark-example/gateway/proxies/sum"
 	auth "github.com/gkarlik/quark/auth/jwt"
 	"github.com/gkarlik/quark/logger"
-	"github.com/gkarlik/quark/metrics"
 	"github.com/gkarlik/quark/metrics/influxdb"
 	"github.com/gkarlik/quark/ratelimiter"
 	sd "github.com/gkarlik/quark/service/discovery"
 	"github.com/gkarlik/quark/service/discovery/consul"
+	gRPC "github.com/gkarlik/quark/service/rpc/grpc"
 	"github.com/gkarlik/quark/service/trace/zipkin"
 	"github.com/gorilla/mux"
-	"github.com/opentracing/opentracing-go"
+	opentracing "github.com/opentracing/opentracing-go"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 type gateway struct {
@@ -63,6 +66,8 @@ func createGateway() *gateway {
 var srv = createGateway()
 
 func main() {
+	defer srv.Dispose()
+
 	secret := quark.GetEnvVar("GATEWAY_SECRET")
 	am := auth.NewAuthenticationMiddleware(
 		auth.WithSecret(secret),
@@ -92,52 +97,73 @@ func main() {
 	}, "Service initialized. Listening for incomming connections")
 
 	http.ListenAndServe(srv.Info().Address.String(), r)
-
-	srv.Dispose()
 }
 
 func sumHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	defer func() {
-		srv.Log().Info("Sending metric")
-
-		m := metrics.Metric{
-			Date: time.Now(),
-			Name: "response_time",
-			Tags: map[string]string{"service": "gateway"},
-			Values: map[string]interface{}{
-				"value": time.Now().UnixNano() - start.UnixNano(),
-			},
-		}
-
-		err := srv.Metrics().Report([]metrics.Metric{m})
-		if err != nil {
-			srv.Log().InfoWithFields(logger.LogFields{
-				"error": err,
-			}, "Error reporting metrics")
-		}
+		quark.ReportServiceValue(srv, "response_time", time.Since(start).Nanoseconds())
 	}()
 
 	span := srv.Tracer().StartSpan("sum_get_request")
 	defer span.Finish()
 
 	vars := mux.Vars(r)
-
 	a, _ := strconv.Atoi(vars["a"])
 	b, _ := strconv.Atoi(vars["b"])
 
-	resp := fmt.Sprintf("%d + %d = %d", a, b, a+b)
+	url, err := srv.Discovery().GetServiceAddress(sd.ByName("SumService"))
+	if err != nil {
+		srv.Log().Error(err)
+
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	conn, err := grpc.Dial(url.String(), grpc.WithInsecure())
+	if err != nil {
+		srv.Log().Error(err)
+
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer conn.Close()
+
+	client := proxy.NewSumServiceClient(conn)
+
+	md := metadata.Pairs()
+	err = srv.Tracer().InjectSpan(span, opentracing.TextMap, gRPC.MetadataReaderWriter{MD: &md})
+	ctx := metadata.NewContext(context.Background(), md)
+
+	srv.Log().InfoWithFields(logger.LogFields{
+		"ctx": ctx,
+	}, "Context")
+
+	result, err := client.Sum(ctx, &proxy.SumRequest{A: int64(a), B: int64(b)})
+
+	if err != nil {
+		srv.Log().Error(err)
+
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	resp := fmt.Sprintf("%d + %d = %d", a, b, result.Sum)
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(resp))
 }
 
 func multiplyHandler(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	defer func() {
+		quark.ReportServiceValue(srv, "response_time", time.Since(start).Nanoseconds())
+	}()
+
 	span := srv.Tracer().StartSpan("mul_get_request")
 	defer span.Finish()
 
 	vars := mux.Vars(r)
-
 	a, _ := strconv.Atoi(vars["a"])
 	b, _ := strconv.Atoi(vars["b"])
 
@@ -149,16 +175,7 @@ func multiplyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if url != nil {
-		req, _ := http.NewRequest("GET", fmt.Sprintf("http://%s/multiply/%d/%d", url.String(), a, b), nil)
-
-		srv.Tracer().InjectSpan(span, opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(req.Header))
-
-		client := http.Client{
-			Timeout: 10 * time.Second,
-		}
-
-		resp, _ := client.Do(req)
-		data, _ := ioutil.ReadAll(resp.Body)
+		data, _ := quark.CallHTTPService(srv, http.MethodGet, fmt.Sprintf("http://%s/multiply/%d/%d", url.String(), a, b), nil, span)
 
 		w.WriteHeader(http.StatusOK)
 		w.Write(data)

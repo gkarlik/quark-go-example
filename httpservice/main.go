@@ -56,6 +56,8 @@ func createMultiplyService() *multiplyService {
 var srv = createMultiplyService()
 
 func main() {
+	defer srv.Dispose()
+
 	err := srv.Discovery().RegisterService(sd.WithInfo(srv.Info()))
 	if err != nil {
 		srv.Log().ErrorWithFields(logger.LogFields{
@@ -73,15 +75,13 @@ func main() {
 	}, "Service initialized. Listening for incomming connections")
 
 	http.ListenAndServe(srv.Info().Address.String(), r)
-
-	srv.Dispose()
 }
 
 func mulitplyHandler(w http.ResponseWriter, r *http.Request) {
 	span, _ := srv.Tracer().ExtractSpan("mul_handler", opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
 	defer span.Finish()
 
-	srv.Log().Info("Handling multiply request")
+	srv.Log().Info("Executing multiply function")
 
 	vars := mux.Vars(r)
 

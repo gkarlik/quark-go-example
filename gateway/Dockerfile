@@ -2,8 +2,8 @@ FROM carlos
 
 RUN go get github.com/gorilla/mux
 
-COPY . /go/gateway
-WORKDIR /go/gateway
+COPY . /go/src/github.com/gkarlik/quark-example/gateway
+WORKDIR /go/src/github.com/gkarlik/quark-example/gateway
 
 ENV GATEWAY_NAME Gateway
 ENV GATEWAY_VERSION 1.0

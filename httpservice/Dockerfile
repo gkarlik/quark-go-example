@@ -1,9 +1,17 @@
-FROM carlos
+FROM golang
 
+RUN go get google.golang.org/grpc
+RUN go get github.com/dgrijalva/jwt-go
+RUN go get github.com/Sirupsen/logrus
+RUN go get github.com/influxdata/influxdb/client/v2
+RUN go get github.com/hashicorp/consul/api
+RUN go get github.com/openzipkin/zipkin-go-opentracing
+RUN go get github.com/opentracing/opentracing-go
+RUN go get github.com/gkarlik/quark-go
 RUN go get github.com/gorilla/mux
 
-COPY . /go/src/github.com/gkarlik/quark-example/httpservice
-WORKDIR /go/src/github.com/gkarlik/quark-example/httpservice
+COPY . /go/src/github.com/gkarlik/quark-go-example/httpservice
+WORKDIR /go/src/github.com/gkarlik/quark-go-example/httpservice
 
 ENV MULTIPLY_SERVICE_NAME MultiplyService
 ENV MULTIPLY_SERVICE_VERSION 1.0

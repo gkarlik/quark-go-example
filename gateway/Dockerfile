@@ -1,9 +1,18 @@
-FROM carlos
+FROM golang
 
+RUN go get google.golang.org/grpc
+RUN go get github.com/dgrijalva/jwt-go
+RUN go get github.com/Sirupsen/logrus
+RUN go get github.com/influxdata/influxdb/client/v2
+RUN go get github.com/hashicorp/consul/api
+RUN go get github.com/openzipkin/zipkin-go-opentracing
+RUN go get github.com/opentracing/opentracing-go
+RUN go get golang.org/x/time/rate
 RUN go get github.com/gorilla/mux
+RUN go get github.com/gkarlik/quark-go
 
-COPY . /go/src/github.com/gkarlik/quark-example/gateway
-WORKDIR /go/src/github.com/gkarlik/quark-example/gateway
+COPY . /go/src/github.com/gkarlik/quark-go-example/gateway
+WORKDIR /go/src/github.com/gkarlik/quark-go-example/gateway
 
 ENV GATEWAY_NAME Gateway
 ENV GATEWAY_VERSION 1.0

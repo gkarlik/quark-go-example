@@ -1,7 +1,67 @@
 {
 	"comment": "",
 	"ignore": "test",
-	"package": [		
+	"package": [
+		{
+			"checksumSHA1": "dGXnnR7ZhsrZNnEqFimk6q7YCqs=",
+			"path": "github.com/Sirupsen/logrus",
+			"revision": "61e43dc76f7ee59a82bdf3d71033dc12bea4c77d",
+			"revisionTime": "2017-01-13T01:19:11Z"
+		},
+		{
+			"checksumSHA1": "QPTR2qLZkMOSIUrR1dg+kR9xqNc=",
+			"path": "github.com/gkarlik/quark-go",
+			"revision": "fa711c5fbd80cd4935e97057e0e937a42cdb9c04",
+			"revisionTime": "2017-01-30T22:22:41Z"
+		},
+		{
+			"checksumSHA1": "H+aZj9+sa1argbgSaYTu1Wy/4B0=",
+			"path": "github.com/gkarlik/quark-go/broker",
+			"revision": "fa711c5fbd80cd4935e97057e0e937a42cdb9c04",
+			"revisionTime": "2017-01-30T22:22:41Z"
+		},
+		{
+			"checksumSHA1": "QcaKM0VRqksQ6m7t82kr1IB8EwY=",
+			"path": "github.com/gkarlik/quark-go/logger",
+			"revision": "fa711c5fbd80cd4935e97057e0e937a42cdb9c04",
+			"revisionTime": "2017-01-30T22:22:41Z"
+		},
+		{
+			"checksumSHA1": "vZboSEBY6Nme8hvT/mA7dGyT78Q=",
+			"path": "github.com/gkarlik/quark-go/metrics",
+			"revision": "fa711c5fbd80cd4935e97057e0e937a42cdb9c04",
+			"revisionTime": "2017-01-30T22:22:41Z"
+		},
+		{
+			"checksumSHA1": "1cW821mDdMAvG6AQBh8mB/Wkg64=",
+			"path": "github.com/gkarlik/quark-go/service",
+			"revision": "fa711c5fbd80cd4935e97057e0e937a42cdb9c04",
+			"revisionTime": "2017-01-30T22:22:41Z"
+		},
+		{
+			"checksumSHA1": "YABSKOCGkjrkj9hKYtfVufO9Ctk=",
+			"path": "github.com/gkarlik/quark-go/service/discovery",
+			"revision": "fa711c5fbd80cd4935e97057e0e937a42cdb9c04",
+			"revisionTime": "2017-01-30T22:22:41Z"
+		},
+		{
+			"checksumSHA1": "2ng8fW5mfO4X6I8MsYGe68dMvjI=",
+			"path": "github.com/gkarlik/quark-go/service/loadbalancer",
+			"revision": "fa711c5fbd80cd4935e97057e0e937a42cdb9c04",
+			"revisionTime": "2017-01-30T22:22:41Z"
+		},
+		{
+			"checksumSHA1": "ehjQRVZIGDux29bEWCBYmEPgEDI=",
+			"path": "github.com/gkarlik/quark-go/service/trace",
+			"revision": "fa711c5fbd80cd4935e97057e0e937a42cdb9c04",
+			"revisionTime": "2017-01-30T22:22:41Z"
+		},
+		{
+			"checksumSHA1": "uqsLu1a9F4Te9MmadXMBDUXeS1Y=",
+			"path": "github.com/gkarlik/quark-go/system",
+			"revision": "fa711c5fbd80cd4935e97057e0e937a42cdb9c04",
+			"revisionTime": "2017-01-30T22:22:41Z"
+		},
 		{
 			"checksumSHA1": "g/V4qrXjUGG9B+e3hB+4NAYJ5Gs=",
 			"path": "github.com/gorilla/context",
@@ -13,7 +73,37 @@
 			"path": "github.com/gorilla/mux",
 			"revision": "392c28fe23e1c45ddba891b0320b3b5df220beea",
 			"revisionTime": "2017-01-18T13:43:44Z"
+		},
+		{
+			"checksumSHA1": "BPZnFZkaYGwSka4Te4x6uDuwJjo=",
+			"path": "github.com/opentracing/opentracing-go",
+			"revision": "5e5abf838007b08f96ae057bc182636a178da0b9",
+			"revisionTime": "2016-12-31T21:23:24Z"
+		},
+		{
+			"checksumSHA1": "+rbKrafLHDnrQFgeWawo9tfZhV4=",
+			"path": "github.com/opentracing/opentracing-go/log",
+			"revision": "5e5abf838007b08f96ae057bc182636a178da0b9",
+			"revisionTime": "2016-12-31T21:23:24Z"
+		},
+		{
+			"checksumSHA1": "9jjO5GjLa0XF/nfWihF02RoH4qc=",
+			"path": "golang.org/x/net/context",
+			"revision": "f2499483f923065a842d38eb4c7f1927e6fc6e6d",
+			"revisionTime": "2017-01-14T04:22:49Z"
+		},
+		{
+			"checksumSHA1": "uTQtOqR0ePMMcvuvAIksiIZxhqU=",
+			"path": "golang.org/x/sys/unix",
+			"revision": "d75a52659825e75fff6158388dddc6a5b04f9ba5",
+			"revisionTime": "2016-12-14T18:38:57Z"
+		},
+		{
+			"checksumSHA1": "XXpD8+S3gLrfmCLOf+RbxblOQkU=",
+			"path": "google.golang.org/grpc/metadata",
+			"revision": "21f8ed309495401e6fd79b3a9fd549582aed1b4c",
+			"revisionTime": "2017-01-27T15:26:01Z"
 		}
 	],
-	"rootPath": "github.com/gkarlik/quark-example"
+	"rootPath": "github.com/gkarlik/quark-go-example"
 }

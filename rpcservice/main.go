@@ -3,26 +3,26 @@ package main
 import (
 	"strconv"
 
-	"github.com/gkarlik/quark"
-	proxy "github.com/gkarlik/quark-example/rpcservice/proxies/sum"
-	"github.com/gkarlik/quark/logger"
-	"github.com/gkarlik/quark/metrics/influxdb"
-	sd "github.com/gkarlik/quark/service/discovery"
-	"github.com/gkarlik/quark/service/discovery/consul"
-	gRPC "github.com/gkarlik/quark/service/rpc/grpc"
-	"github.com/gkarlik/quark/service/trace"
-	"github.com/gkarlik/quark/service/trace/zipkin"
-	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/gkarlik/quark-go"
+	proxy "github.com/gkarlik/quark-go-example/rpcservice/proxies/sum"
+	"github.com/gkarlik/quark-go/logger"
+	"github.com/gkarlik/quark-go/metrics/influxdb"
+	sd "github.com/gkarlik/quark-go/service/discovery"
+	"github.com/gkarlik/quark-go/service/discovery/consul"
+	gRPC "github.com/gkarlik/quark-go/service/rpc/grpc"
+	"github.com/gkarlik/quark-go/service/trace/zipkin"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 )
 
+// sumService service based on quark.ServiceBase
 type sumService struct {
 	*quark.ServiceBase
 }
 
+// helper function to initialize sumService service
 func createSumService() *sumService {
+	// load settings from environment variables
 	name := quark.GetEnvVar("SUM_SERVICE_NAME")
 	version := quark.GetEnvVar("SUM_SERVICE_VERSION")
 	gp := quark.GetEnvVar("SUM_SERVICE_PORT")
@@ -41,6 +41,7 @@ func createSumService() *sumService {
 		panic("Cannot resolve host address!")
 	}
 
+	// initialize sumService service
 	return &sumService{
 		ServiceBase: quark.NewService(
 			quark.Name(name),
@@ -58,18 +59,13 @@ func createSumService() *sumService {
 
 var srv = createSumService()
 
+// function to handle sum of two integers
 func (s *sumService) Sum(ctx context.Context, r *proxy.SumRequest) (*proxy.SumResponse, error) {
-	var span trace.Span
-
-	md, ok := metadata.FromContext(ctx)
-	if ok {
-		span, _ = srv.Tracer().ExtractSpan("sum_rpc_method", opentracing.TextMap, gRPC.MetadataReaderWriter{MD: &md})
-	} else {
-		span = srv.Tracer().StartSpan("sum_rpc_method")
-	}
-
+	// extract and start request tracing span
+	span := quark.StartRPCSpan(srv, "sum_handler", ctx)
 	defer span.Finish()
 
+	// sum two integers
 	srv.Log().Info("Executing sum function")
 
 	return &proxy.SumResponse{
@@ -77,6 +73,7 @@ func (s *sumService) Sum(ctx context.Context, r *proxy.SumRequest) (*proxy.SumRe
 	}, nil
 }
 
+// function to register service in gRPC server
 func (s *sumService) RegisterServiceInstance(server interface{}, serviceInstance interface{}) error {
 	proxy.RegisterSumServiceServer(server.(*grpc.Server), serviceInstance.(proxy.SumServiceServer))
 
@@ -86,6 +83,7 @@ func (s *sumService) RegisterServiceInstance(server interface{}, serviceInstance
 func main() {
 	defer srv.Dispose()
 
+	// register service in service discovery catalog
 	err := srv.Discovery().RegisterService(sd.WithInfo(srv.Info()))
 	if err != nil {
 		srv.Log().ErrorWithFields(logger.LogFields{
@@ -95,6 +93,7 @@ func main() {
 		panic("Cannot register service!")
 	}
 
+	// create and start RPC server
 	server := gRPC.NewServer()
 	server.Start(srv)
 }

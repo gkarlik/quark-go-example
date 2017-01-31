@@ -8,16 +8,15 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/gkarlik/quark"
-	proxy "github.com/gkarlik/quark-example/gateway/proxies/sum"
-	auth "github.com/gkarlik/quark/auth/jwt"
-	"github.com/gkarlik/quark/logger"
-	"github.com/gkarlik/quark/metrics/influxdb"
-	"github.com/gkarlik/quark/ratelimiter"
-	sd "github.com/gkarlik/quark/service/discovery"
-	"github.com/gkarlik/quark/service/discovery/consul"
-	gRPC "github.com/gkarlik/quark/service/rpc/grpc"
-	"github.com/gkarlik/quark/service/trace/zipkin"
+	"github.com/gkarlik/quark-go"
+	proxy "github.com/gkarlik/quark-go-example/gateway/proxies/sum"
+	auth "github.com/gkarlik/quark-go/auth/jwt"
+	"github.com/gkarlik/quark-go/logger"
+	"github.com/gkarlik/quark-go/metrics/influxdb"
+	"github.com/gkarlik/quark-go/ratelimiter"
+	sd "github.com/gkarlik/quark-go/service/discovery"
+	"github.com/gkarlik/quark-go/service/discovery/consul"
+	"github.com/gkarlik/quark-go/service/trace/zipkin"
 	"github.com/gorilla/mux"
 	opentracing "github.com/opentracing/opentracing-go"
 	"golang.org/x/net/context"
@@ -25,11 +24,14 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+// gateway service based on quark.ServiceBase
 type gateway struct {
 	*quark.ServiceBase
 }
 
+// helper function to initialize gateway service
 func createGateway() *gateway {
+	// load settings from environment variables
 	name := quark.GetEnvVar("GATEWAY_NAME")
 	version := quark.GetEnvVar("GATEWAY_VERSION")
 	gp := quark.GetEnvVar("GATEWAY_PORT")
@@ -48,6 +50,7 @@ func createGateway() *gateway {
 		panic("Cannot resolve host address!")
 	}
 
+	// initialize gateway service
 	return &gateway{
 		ServiceBase: quark.NewService(
 			quark.Name(name),
@@ -68,6 +71,7 @@ var srv = createGateway()
 func main() {
 	defer srv.Dispose()
 
+	// setup authentication middleware
 	secret := quark.GetEnvVar("GATEWAY_SECRET")
 	am := auth.NewAuthenticationMiddleware(
 		auth.WithSecret(secret),
@@ -85,10 +89,14 @@ func main() {
 			return auth.Claims{}, errors.New("Invalid username or password")
 		}))
 
-	rl := ratelimiter.NewHTTPRateLimiter(5 * time.Second)
+	// setup rate limiter
+	rl := ratelimiter.NewHTTPRateLimiter(1 * time.Second)
 
 	r := mux.NewRouter()
+	// HTTP handler for generating tokens
 	r.HandleFunc("/login", am.GenerateToken)
+
+	// setup routes to limit traffic and require authentication
 	r.Handle("/api/sum/{a:[0-9]+}/{b:[0-9]+}", rl.Handle(am.Authenticate(http.HandlerFunc(sumHandler))))
 	r.Handle("/api/mul/{a:[0-9]+}/{b:[0-9]+}", rl.Handle(am.Authenticate(http.HandlerFunc(multiplyHandler))))
 
@@ -99,12 +107,15 @@ func main() {
 	http.ListenAndServe(srv.Info().Address.String(), r)
 }
 
+// function to handle call to RPC service to sum two integers
 func sumHandler(w http.ResponseWriter, r *http.Request) {
+	// report response time for monitoring purposes
 	start := time.Now()
 	defer func() {
 		quark.ReportServiceValue(srv, "response_time", time.Since(start).Nanoseconds())
 	}()
 
+	// handle request tracing span
 	span := srv.Tracer().StartSpan("sum_get_request")
 	defer span.Finish()
 
@@ -112,6 +123,7 @@ func sumHandler(w http.ResponseWriter, r *http.Request) {
 	a, _ := strconv.Atoi(vars["a"])
 	b, _ := strconv.Atoi(vars["b"])
 
+	// get the address of SumService from service discovery catalog
 	url, err := srv.Discovery().GetServiceAddress(sd.ByName("SumService"))
 	if err != nil {
 		srv.Log().Error(err)
@@ -120,6 +132,7 @@ func sumHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// connect to RPC service
 	conn, err := grpc.Dial(url.String(), grpc.WithInsecure())
 	if err != nil {
 		srv.Log().Error(err)
@@ -131,14 +144,12 @@ func sumHandler(w http.ResponseWriter, r *http.Request) {
 
 	client := proxy.NewSumServiceClient(conn)
 
+	// pass request tracing span to RPC service
 	md := metadata.Pairs()
-	err = srv.Tracer().InjectSpan(span, opentracing.TextMap, gRPC.MetadataReaderWriter{MD: &md})
+	err = srv.Tracer().InjectSpan(span, opentracing.TextMap, quark.RPCMetadataCarrier{MD: &md})
 	ctx := metadata.NewContext(context.Background(), md)
 
-	srv.Log().InfoWithFields(logger.LogFields{
-		"ctx": ctx,
-	}, "Context")
-
+	// call RPC service
 	result, err := client.Sum(ctx, &proxy.SumRequest{A: int64(a), B: int64(b)})
 
 	if err != nil {
@@ -148,18 +159,22 @@ func sumHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// generate response
 	resp := fmt.Sprintf("%d + %d = %d", a, b, result.Sum)
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(resp))
 }
 
+// function to handle call to HTTP service to multiply two integers
 func multiplyHandler(w http.ResponseWriter, r *http.Request) {
+	// report response time for monitoring purposes
 	start := time.Now()
 	defer func() {
 		quark.ReportServiceValue(srv, "response_time", time.Since(start).Nanoseconds())
 	}()
 
+	// handle request tracing span
 	span := srv.Tracer().StartSpan("mul_get_request")
 	defer span.Finish()
 
@@ -167,6 +182,7 @@ func multiplyHandler(w http.ResponseWriter, r *http.Request) {
 	a, _ := strconv.Atoi(vars["a"])
 	b, _ := strconv.Atoi(vars["b"])
 
+	// get the address of SumService from service discovery catalog
 	url, err := srv.Discovery().GetServiceAddress(sd.ByName("MultiplyService"))
 	if err != nil {
 		srv.Log().Error(err)
@@ -175,6 +191,7 @@ func multiplyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if url != nil {
+		// call HTTP service and pass request tracing span to it
 		data, _ := quark.CallHTTPService(srv, http.MethodGet, fmt.Sprintf("http://%s/multiply/%d/%d", url.String(), a, b), nil, span)
 
 		w.WriteHeader(http.StatusOK)

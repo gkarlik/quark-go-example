@@ -5,21 +5,26 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gkarlik/quark"
-	"github.com/gkarlik/quark/logger"
-	"github.com/gkarlik/quark/metrics/influxdb"
-	sd "github.com/gkarlik/quark/service/discovery"
-	"github.com/gkarlik/quark/service/discovery/consul"
-	"github.com/gkarlik/quark/service/trace/zipkin"
+	"time"
+
+	"github.com/gkarlik/quark-go"
+	"github.com/gkarlik/quark-go/logger"
+	"github.com/gkarlik/quark-go/metrics/influxdb"
+	sd "github.com/gkarlik/quark-go/service/discovery"
+	"github.com/gkarlik/quark-go/service/discovery/consul"
+	"github.com/gkarlik/quark-go/service/trace/zipkin"
 	"github.com/gorilla/mux"
 	"github.com/opentracing/opentracing-go"
 )
 
+// multiplyService service based on quark.ServiceBase
 type multiplyService struct {
 	*quark.ServiceBase
 }
 
+// helper function to initialize multiplyService service
 func createMultiplyService() *multiplyService {
+	// load settings from environment variables
 	name := quark.GetEnvVar("MULTIPLY_SERVICE_NAME")
 	version := quark.GetEnvVar("MULTIPLY_SERVICE_VERSION")
 	gp := quark.GetEnvVar("MULTIPLY_SERVICE_PORT")
@@ -38,6 +43,7 @@ func createMultiplyService() *multiplyService {
 		panic("Cannot resolve host address!")
 	}
 
+	// initialize multiplyService service
 	return &multiplyService{
 		ServiceBase: quark.NewService(
 			quark.Name(name),
@@ -58,6 +64,7 @@ var srv = createMultiplyService()
 func main() {
 	defer srv.Dispose()
 
+	// register service in service discovery catalog
 	err := srv.Discovery().RegisterService(sd.WithInfo(srv.Info()))
 	if err != nil {
 		srv.Log().ErrorWithFields(logger.LogFields{
@@ -77,17 +84,28 @@ func main() {
 	http.ListenAndServe(srv.Info().Address.String(), r)
 }
 
+// function to handle multiplication of two integers
 func mulitplyHandler(w http.ResponseWriter, r *http.Request) {
+	// extract and start request tracing span
 	span, _ := srv.Tracer().ExtractSpan("mul_handler", opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
 	defer span.Finish()
 
+	// multiply two integers
 	srv.Log().Info("Executing multiply function")
+
+	if time.Now().Second()%2 == 0 {
+		quark.ReportServiceValue(srv, "errors", 1)
+
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	vars := mux.Vars(r)
 
 	a, _ := strconv.Atoi(vars["a"])
 	b, _ := strconv.Atoi(vars["b"])
 
+	// generate response
 	resp := fmt.Sprintf("%d * %d = %d", a, b, a*b)
 
 	w.WriteHeader(http.StatusOK)

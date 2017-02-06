@@ -9,8 +9,11 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gkarlik/quark-go"
+	"github.com/gkarlik/quark-go-example/gateway/model"
 	proxy "github.com/gkarlik/quark-go-example/gateway/proxies/sum"
 	auth "github.com/gkarlik/quark-go/auth/jwt"
+	"github.com/gkarlik/quark-go/data/access/rdbms"
+	"github.com/gkarlik/quark-go/data/access/rdbms/gorm"
 	"github.com/gkarlik/quark-go/logger"
 	"github.com/gkarlik/quark-go/metrics/influxdb"
 	"github.com/gkarlik/quark-go/ratelimiter"
@@ -18,6 +21,7 @@ import (
 	"github.com/gkarlik/quark-go/service/discovery/consul"
 	"github.com/gkarlik/quark-go/service/trace/zipkin"
 	"github.com/gorilla/mux"
+	_ "github.com/jinzhu/gorm/dialects/postgres"
 	opentracing "github.com/opentracing/opentracing-go"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -66,6 +70,62 @@ func createGateway() *gateway {
 	}
 }
 
+func NewDbContext() rdbms.DbContext {
+	dialect := quark.GetEnvVar("GATEWAY_DB_DIALECT")
+	dbConnStr := quark.GetEnvVar("GATEWAY_DB_CONN_STR")
+
+	context, err := gorm.NewDbContext(dialect, dbConnStr)
+	if err != nil {
+		srv.Log().ErrorWithFields(logger.LogFields{"error": err})
+		return nil
+	}
+	return context
+}
+
+func InitializeDatabase() {
+	context := NewDbContext()
+	if context != nil {
+		defer context.Dispose()
+
+		context.(*gorm.DbContext).DB.SingularTable(true)
+		context.(*gorm.DbContext).DB.AutoMigrate(&model.User{})
+
+		user := &model.User{
+			Login:    "test",
+			Password: "test",
+		}
+
+		repo := model.NewUserRepository(context)
+		repo.Save(user)
+	}
+}
+
+func authenticateUser(credentials auth.Credentials) (auth.Claims, error) {
+	context := NewDbContext()
+	if context == nil {
+		return auth.Claims{}, errors.New("Invalid username or password")
+	}
+	defer context.Dispose()
+
+	repo := model.NewUserRepository(context)
+	user, err := repo.FindByLogin(credentials.Username)
+	if err != nil {
+		return auth.Claims{}, errors.New("Invalid username or password")
+	}
+
+	// this is simplication - password should be hashed and salted!
+	if user.Password == credentials.Password {
+		return auth.Claims{
+			Username: credentials.Username,
+			StandardClaims: jwt.StandardClaims{
+				Issuer:    srv.Info().Address.String(),
+				ExpiresAt: time.Now().Add(1 * time.Hour).Unix(),
+			},
+		}, nil
+	}
+	return auth.Claims{}, errors.New("Invalid username or password")
+}
+
 var srv = createGateway()
 
 func main() {
@@ -77,17 +137,11 @@ func main() {
 		auth.WithSecret(secret),
 		auth.WithContextKey("USER_KEY"),
 		auth.WithAuthenticationFunc(func(credentials auth.Credentials) (auth.Claims, error) {
-			if credentials.Username == "test" && credentials.Password == "test" {
-				return auth.Claims{
-					Username: "test",
-					StandardClaims: jwt.StandardClaims{
-						Issuer:    srv.Info().Address.String(),
-						ExpiresAt: time.Now().Add(1 * time.Hour).Unix(),
-					},
-				}, nil
-			}
-			return auth.Claims{}, errors.New("Invalid username or password")
+			return authenticateUser(credentials)
 		}))
+
+	srv.Log().Info("Initializing database schema and data")
+	InitializeDatabase()
 
 	// setup rate limiter
 	rl := ratelimiter.NewHTTPRateLimiter(1 * time.Second)

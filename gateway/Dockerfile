@@ -1,5 +1,6 @@
 FROM golang
 
+RUN go get github.com/jinzhu/gorm
 RUN go get google.golang.org/grpc
 RUN go get github.com/dgrijalva/jwt-go
 RUN go get github.com/Sirupsen/logrus
@@ -10,6 +11,7 @@ RUN go get github.com/opentracing/opentracing-go
 RUN go get golang.org/x/time/rate
 RUN go get github.com/gorilla/mux
 RUN go get github.com/gkarlik/quark-go
+RUN go get github.com/jinzhu/gorm/dialects/postgres
 
 COPY . /go/src/github.com/gkarlik/quark-go-example/gateway
 WORKDIR /go/src/github.com/gkarlik/quark-go-example/gateway
@@ -19,6 +21,9 @@ ENV GATEWAY_VERSION 1.0
 ENV GATEWAY_PORT 9999
 ENV GATEWAY_SECRET mysecret
 ENV DISCOVERY consul:8500
+
+ENV GATEWAY_DB_DIALECT postgres
+ENV GATEWAY_DB_CONN_STR host=database user=postgres dbname=quark_go_example sslmode=disable password=
 
 ENV METRICS_ADDRES http://influxdb:8086
 ENV METRICS_DATABASE test

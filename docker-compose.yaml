@@ -1,9 +1,16 @@
 version: '2'
 services:
+    database:
+        build: ./database
+        ports:
+            - "5432:5432"
+    
     gateway:
         build: ./gateway
         ports:
             - "9999:9999"
+        depends_on:
+            - database
 
     httpservice:
         build: ./httpservice

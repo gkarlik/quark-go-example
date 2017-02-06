@@ -1,0 +1,1 @@
+CREATE DATABASE quark_go_example;

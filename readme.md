@@ -58,3 +58,19 @@ if err != nil {
     panic("Cannot register service!")
 }
 ```
+
+Database access:
+
+```
+func (ur *UserRepository) FindByLogin(login string) (*User, error) {
+	if login == "" {
+		return nil, fmt.Errorf("Invalid username or password")
+	}
+
+	var user User
+	if err := ur.First(&user, User{Login: login}); err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+```

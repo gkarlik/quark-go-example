@@ -51,7 +51,7 @@ Register service in service discovery catalog:
 ```
 err := service.Discovery().RegisterService(sd.WithInfo(service.Info()))
 if err != nil {
-    service.Log().ErrorWithFields(logger.LogFields{
+    service.Log().ErrorWithFields(logger.Fields{
         "err": err,
     }, "Cannot register service")
 

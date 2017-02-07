@@ -67,7 +67,7 @@ func main() {
 	// register service in service discovery catalog
 	err := srv.Discovery().RegisterService(sd.WithInfo(srv.Info()))
 	if err != nil {
-		srv.Log().ErrorWithFields(logger.LogFields{
+		srv.Log().ErrorWithFields(logger.Fields{
 			"err": err,
 		}, "Cannot register service")
 
@@ -77,7 +77,7 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/multiply/{a:[0-9]+}/{b:[0-9]+}", mulitplyHandler)
 
-	srv.Log().InfoWithFields(logger.LogFields{
+	srv.Log().InfoWithFields(logger.Fields{
 		"addr": srv.Info().Address.String(),
 	}, "Service initialized. Listening for incomming connections")
 

@@ -76,7 +76,7 @@ func NewDbContext() rdbms.DbContext {
 
 	context, err := gorm.NewDbContext(dialect, dbConnStr)
 	if err != nil {
-		srv.Log().ErrorWithFields(logger.LogFields{"error": err})
+		srv.Log().ErrorWithFields(logger.Fields{"error": err})
 		return nil
 	}
 	return context
@@ -154,7 +154,7 @@ func main() {
 	r.Handle("/api/sum/{a:[0-9]+}/{b:[0-9]+}", rl.Handle(am.Authenticate(http.HandlerFunc(sumHandler))))
 	r.Handle("/api/mul/{a:[0-9]+}/{b:[0-9]+}", rl.Handle(am.Authenticate(http.HandlerFunc(multiplyHandler))))
 
-	srv.Log().InfoWithFields(logger.LogFields{
+	srv.Log().InfoWithFields(logger.Fields{
 		"addr": srv.Info().Address.String(),
 	}, "Service initialized. Listening for incomming connections")
 

@@ -86,7 +86,7 @@ func main() {
 	// register service in service discovery catalog
 	err := srv.Discovery().RegisterService(sd.WithInfo(srv.Info()))
 	if err != nil {
-		srv.Log().ErrorWithFields(logger.LogFields{
+		srv.Log().ErrorWithFields(logger.Fields{
 			"err": err,
 		}, "Cannot register service")
 

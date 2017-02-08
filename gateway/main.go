@@ -79,6 +79,9 @@ func NewDbContext() rdbms.DbContext {
 		srv.Log().ErrorWithFields(logger.Fields{"error": err})
 		return nil
 	}
+
+	context.DB.SingularTable(true)
+
 	return context
 }
 
@@ -87,7 +90,6 @@ func InitializeDatabase() {
 	if context != nil {
 		defer context.Dispose()
 
-		context.(*gorm.DbContext).DB.SingularTable(true)
 		context.(*gorm.DbContext).DB.AutoMigrate(&model.User{})
 
 		user := &model.User{

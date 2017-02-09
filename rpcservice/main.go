@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math/rand"
 	"strconv"
 	"time"
 
@@ -99,6 +100,8 @@ func main() {
 	}
 
 	go func() {
+		r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
 		for {
 			msg := broker.Message{
 				Key:   "SampleTopic",
@@ -116,7 +119,9 @@ func main() {
 				}, "Cannot publish message")
 			}
 
-			time.Sleep(1 * time.Second)
+			// 1 - 5 seconds delay
+			delay := time.Duration(r.Int63n(5) + 1)
+			time.Sleep(delay * time.Second)
 		}
 	}()
 

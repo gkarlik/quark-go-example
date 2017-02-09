@@ -118,7 +118,7 @@ func mulitplyHandler(w http.ResponseWriter, r *http.Request) {
 	if time.Now().Second()%2 == 0 {
 		quark.ReportServiceValue(srv, "errors", 1)
 
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 

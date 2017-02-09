@@ -184,7 +184,7 @@ func sumHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		srv.Log().Error(err)
 
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -193,7 +193,7 @@ func sumHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		srv.Log().Error(err)
 
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	defer conn.Close()
@@ -211,7 +211,7 @@ func sumHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		srv.Log().Error(err)
 
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -243,17 +243,23 @@ func multiplyHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		srv.Log().Error(err)
 
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	if url != nil {
 		// call HTTP service and pass request tracing span to it
-		data, _ := quark.CallHTTPService(srv, http.MethodGet, fmt.Sprintf("http://%s/multiply/%d/%d", url.String(), a, b), nil, span)
+		data, err := quark.CallHTTPService(srv, http.MethodGet, fmt.Sprintf("http://%s/multiply/%d/%d", url.String(), a, b), nil, span)
+		if err != nil {
+			srv.Log().Error(err)
+
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
 
 		w.WriteHeader(http.StatusOK)
 		w.Write(data)
 
 		return
 	}
-	w.WriteHeader(http.StatusInternalServerError)
+	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }

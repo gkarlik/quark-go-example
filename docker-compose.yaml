@@ -11,16 +11,29 @@ services:
             - "9999:9999"
         depends_on:
             - database
+            - consul
+            - zipkin
+            - influxdb
 
     httpservice:
         build: ./httpservice
         ports:
             - "7777:7777"
+        depends_on:
+            - rabbitmq
+            - consul
+            - zipkin
+            - influxdb
 
     rpcservice:
         build: ./rpcservice
         ports:
             - "6666:6666"
+        depends_on:
+            - rabbitmq
+            - consul
+            - zipkin
+            - influxdb
 
     consul:
         image: consul

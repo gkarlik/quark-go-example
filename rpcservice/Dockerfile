@@ -8,6 +8,7 @@ RUN go get github.com/hashicorp/consul/api
 RUN go get github.com/openzipkin/zipkin-go-opentracing
 RUN go get github.com/opentracing/opentracing-go
 RUN go get github.com/gkarlik/quark-go
+RUN go get github.com/streadway/amqp
 
 COPY . /go/src/github.com/gkarlik/quark-go-example/rpcservice
 WORKDIR /go/src/github.com/gkarlik/quark-go-example/rpcservice
@@ -21,5 +22,7 @@ ENV METRICS_ADDRES http://influxdb:8086
 ENV METRICS_DATABASE test
 
 ENV TRACER http://zipkin:9411/api/v1/spans
+
+ENV BROKER amqp://rabbitmq:5672/
 
 ENTRYPOINT go run main.go

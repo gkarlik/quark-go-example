@@ -2,9 +2,12 @@ package main
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/gkarlik/quark-go"
 	proxy "github.com/gkarlik/quark-go-example/rpcservice/proxies/sum"
+	"github.com/gkarlik/quark-go/broker"
+	"github.com/gkarlik/quark-go/broker/rabbitmq"
 	"github.com/gkarlik/quark-go/logger"
 	"github.com/gkarlik/quark-go/metrics/influxdb"
 	sd "github.com/gkarlik/quark-go/service/discovery"
@@ -30,6 +33,7 @@ func createSumService() *sumService {
 	mAddr := quark.GetEnvVar("METRICS_ADDRES")
 	mDatabase := quark.GetEnvVar("METRICS_DATABASE")
 	tAddr := quark.GetEnvVar("TRACER")
+	bAddr := quark.GetEnvVar("BROKER")
 
 	port, err := strconv.Atoi(gp)
 	if err != nil {
@@ -53,7 +57,8 @@ func createSumService() *sumService {
 				influxdb.Username(""),
 				influxdb.Password(""),
 			)),
-			quark.Tracer(zipkin.NewTracer(tAddr, name, addr))),
+			quark.Tracer(zipkin.NewTracer(tAddr, name, addr)),
+			quark.Broker(rabbitmq.NewMessageBroker(bAddr))),
 	}
 }
 
@@ -92,6 +97,28 @@ func main() {
 
 		panic("Cannot register service!")
 	}
+
+	go func() {
+		for {
+			msg := broker.Message{
+				Key:   "SampleTopic",
+				Value: "Sample message with timestamp = " + time.Now().String(),
+			}
+
+			srv.Log().InfoWithFields(logger.Fields{
+				"topic": msg.Key,
+				"value": msg.Value,
+			}, "Sending message")
+
+			if err := srv.Broker().PublishMessage(msg); err != nil {
+				srv.Log().ErrorWithFields(logger.Fields{
+					"error": err,
+				}, "Cannot publish message")
+			}
+
+			time.Sleep(1 * time.Second)
+		}
+	}()
 
 	// create and start RPC server
 	server := gRPC.NewServer()

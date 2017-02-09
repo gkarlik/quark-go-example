@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gkarlik/quark-go"
+	"github.com/gkarlik/quark-go/broker/rabbitmq"
 	"github.com/gkarlik/quark-go/logger"
 	"github.com/gkarlik/quark-go/metrics/influxdb"
 	sd "github.com/gkarlik/quark-go/service/discovery"
@@ -32,6 +33,7 @@ func createMultiplyService() *multiplyService {
 	mAddr := quark.GetEnvVar("METRICS_ADDRES")
 	mDatabase := quark.GetEnvVar("METRICS_DATABASE")
 	tAddr := quark.GetEnvVar("TRACER")
+	bAddr := quark.GetEnvVar("BROKER")
 
 	port, err := strconv.Atoi(gp)
 	if err != nil {
@@ -55,7 +57,8 @@ func createMultiplyService() *multiplyService {
 				influxdb.Username(""),
 				influxdb.Password(""),
 			)),
-			quark.Tracer(zipkin.NewTracer(tAddr, name, addr))),
+			quark.Tracer(zipkin.NewTracer(tAddr, name, addr)),
+			quark.Broker(rabbitmq.NewMessageBroker(bAddr))),
 	}
 }
 
@@ -76,6 +79,25 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/multiply/{a:[0-9]+}/{b:[0-9]+}", mulitplyHandler)
+
+	go func() {
+		srv.Log().Info("Waiting for incomming messages")
+
+		messages, err := srv.Broker().Subscribe("SampleTopic")
+		if err != nil {
+			srv.Log().ErrorWithFields(logger.Fields{
+				"error": err,
+			}, "Cannot subscribe to messages with topic = 'SampleTopic'")
+
+			return
+		}
+		for msg := range messages {
+			srv.Log().InfoWithFields(logger.Fields{
+				"topic": msg.Key,
+				"value": string(msg.Value.([]byte)),
+			}, "Message received")
+		}
+	}()
 
 	srv.Log().InfoWithFields(logger.Fields{
 		"addr": srv.Info().Address.String(),

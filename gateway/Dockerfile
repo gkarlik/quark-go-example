@@ -1,33 +1,30 @@
 FROM golang
 
-RUN go get github.com/jinzhu/gorm
-RUN go get google.golang.org/grpc
-RUN go get github.com/dgrijalva/jwt-go
-RUN go get github.com/Sirupsen/logrus
-RUN go get github.com/influxdata/influxdb/client/v2
-RUN go get github.com/hashicorp/consul/api
-RUN go get github.com/openzipkin/zipkin-go-opentracing
-RUN go get github.com/opentracing/opentracing-go
-RUN go get golang.org/x/time/rate
-RUN go get github.com/gorilla/mux
-RUN go get github.com/gkarlik/quark-go
-RUN go get github.com/jinzhu/gorm/dialects/postgres
+RUN go get github.com/jinzhu/gorm && \
+    go get google.golang.org/grpc && \
+    go get github.com/dgrijalva/jwt-go && \
+    go get github.com/Sirupsen/logrus && \
+    go get github.com/influxdata/influxdb/client/v2 && \
+    go get github.com/hashicorp/consul/api && \
+    go get github.com/openzipkin/zipkin-go-opentracing && \
+    go get github.com/opentracing/opentracing-go && \
+    go get golang.org/x/time/rate && \
+    go get github.com/gorilla/mux && \
+    go get github.com/jinzhu/gorm/dialects/postgres && \
+    go get github.com/gkarlik/quark-go
 
 COPY . /go/src/github.com/gkarlik/quark-go-example/gateway
 WORKDIR /go/src/github.com/gkarlik/quark-go-example/gateway
 
-ENV GATEWAY_NAME Gateway
-ENV GATEWAY_VERSION 1.0
-ENV GATEWAY_PORT 9999
-ENV GATEWAY_SECRET mysecret
-ENV DISCOVERY consul:8500
-
-ENV GATEWAY_DB_DIALECT postgres
-ENV GATEWAY_DB_CONN_STR host=database user=postgres dbname=quark_go_example sslmode=disable password=
-
-ENV METRICS_ADDRES http://influxdb:8086
-ENV METRICS_DATABASE test
-
-ENV TRACER http://zipkin:9411/api/v1/spans
+ENV GATEWAY_NAME=Gateway \
+    GATEWAY_VERSION=1.0 \
+    GATEWAY_PORT=9999 \
+    GATEWAY_SECRET=mysecret \
+    DISCOVERY=consul:8500 \
+    GATEWAY_DB_DIALECT=postgres \
+    GATEWAY_DB_CONN_STR="host=database user=postgres dbname=quark_go_example sslmode=disable password=" \
+    METRICS_ADDRES=http://influxdb:8086 \
+    METRICS_DATABASE=test \
+    TRACER=http://zipkin:9411/api/v1/spans
 
 ENTRYPOINT go run main.go

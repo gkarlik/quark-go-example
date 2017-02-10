@@ -46,7 +46,7 @@ func createMultiplyService() *multiplyService {
 	}
 
 	// initialize multiplyService service
-	return &multiplyService{
+	m := &multiplyService{
 		ServiceBase: quark.NewService(
 			quark.Name(name),
 			quark.Version(version),
@@ -60,6 +60,9 @@ func createMultiplyService() *multiplyService {
 			quark.Tracer(zipkin.NewTracer(tAddr, name, addr)),
 			quark.Broker(rabbitmq.NewMessageBroker(bAddr))),
 	}
+	m.Log().SetLevel(logger.DebugLevel)
+
+	return m
 }
 
 var srv = createMultiplyService()

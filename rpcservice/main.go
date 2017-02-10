@@ -47,7 +47,7 @@ func createSumService() *sumService {
 	}
 
 	// initialize sumService service
-	return &sumService{
+	s := &sumService{
 		ServiceBase: quark.NewService(
 			quark.Name(name),
 			quark.Version(version),
@@ -61,6 +61,9 @@ func createSumService() *sumService {
 			quark.Tracer(zipkin.NewTracer(tAddr, name, addr)),
 			quark.Broker(rabbitmq.NewMessageBroker(bAddr))),
 	}
+	s.Log().SetLevel(logger.DebugLevel)
+
+	return s
 }
 
 var srv = createSumService()

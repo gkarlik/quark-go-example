@@ -55,7 +55,7 @@ func createGateway() *gateway {
 	}
 
 	// initialize gateway service
-	return &gateway{
+	g := &gateway{
 		ServiceBase: quark.NewService(
 			quark.Name(name),
 			quark.Version(version),
@@ -68,6 +68,9 @@ func createGateway() *gateway {
 			)),
 			quark.Tracer(zipkin.NewTracer(tAddr, name, addr))),
 	}
+	g.Log().SetLevel(logger.DebugLevel)
+
+	return g
 }
 
 func NewDbContext() rdbms.DbContext {

@@ -90,8 +90,6 @@ func (s *sumService) RegisterServiceInstance(server interface{}, serviceInstance
 }
 
 func main() {
-	defer srv.Dispose()
-
 	// register service in service discovery catalog
 	err := srv.Discovery().RegisterService(sd.WithInfo(srv.Info()))
 	if err != nil {
@@ -128,7 +126,16 @@ func main() {
 		}
 	}()
 
-	// create and start RPC server
+	done := quark.HandleInterrupt(srv)
 	server := gRPC.NewServer()
-	server.Start(srv)
+	defer func() {
+		server.Dispose()
+		srv.Dispose()
+	}()
+
+	go func() {
+		server.Start(srv)
+	}()
+
+	<-done
 }

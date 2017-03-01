@@ -11,12 +11,12 @@ import (
 	"github.com/gkarlik/quark-go"
 	"github.com/gkarlik/quark-go-example/gateway/model"
 	proxy "github.com/gkarlik/quark-go-example/gateway/proxies/sum"
-	auth "github.com/gkarlik/quark-go/auth/jwt"
 	"github.com/gkarlik/quark-go/data/access/rdbms"
 	"github.com/gkarlik/quark-go/data/access/rdbms/gorm"
 	"github.com/gkarlik/quark-go/logger"
 	"github.com/gkarlik/quark-go/metrics/influxdb"
-	"github.com/gkarlik/quark-go/ratelimiter"
+	auth "github.com/gkarlik/quark-go/middleware/auth/jwt"
+	"github.com/gkarlik/quark-go/middleware/ratelimiter"
 	sd "github.com/gkarlik/quark-go/service/discovery"
 	"github.com/gkarlik/quark-go/service/discovery/consul"
 	"github.com/gkarlik/quark-go/service/trace/zipkin"
@@ -148,8 +148,8 @@ func main() {
 	srv.Log().Info("Initializing database schema and data")
 	InitializeDatabase()
 
-	// setup rate limiter
-	rl := ratelimiter.NewHTTPRateLimiter(1 * time.Second)
+	// setup rate limiter middleware
+	rl := ratelimiter.NewRateLimiterMiddleware(1 * time.Second)
 
 	r := mux.NewRouter()
 	// HTTP handler for generating tokens

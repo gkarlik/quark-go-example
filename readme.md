@@ -12,7 +12,7 @@ Quark-go-example uses [govendor](https://github.com/kardianos/govendor) to manag
 
 ## Running
 
-The best way to run quark-go-example it to use docker containers. Execute the following commands to build and run project:
+The best way to run quark-go-example is to use docker containers. Execute the following commands to build and run project:
 
 `$ docker-compose build`
 

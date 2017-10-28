@@ -71,7 +71,7 @@ var srv = createSumService()
 // function to handle sum of two integers
 func (s *sumService) Sum(ctx context.Context, r *proxy.SumRequest) (*proxy.SumResponse, error) {
 	// extract and start request tracing span
-	span := quark.StartRPCSpan(srv, "sum_handler", ctx)
+	span := quark.StartRPCSpan(ctx, srv, "sum_handler")
 	defer span.Finish()
 
 	// sum two integers
@@ -105,16 +105,16 @@ func main() {
 
 		for {
 			msg := broker.Message{
-				Key:   "SampleTopic",
+				Topic: "SampleTopic",
 				Value: "Sample message with timestamp = " + time.Now().String(),
 			}
 
 			srv.Log().InfoWithFields(logger.Fields{
-				"topic": msg.Key,
+				"topic": msg.Topic,
 				"value": msg.Value,
 			}, "Sending message")
 
-			if err := srv.Broker().PublishMessage(msg); err != nil {
+			if err := srv.Broker().PublishMessage(context.Background(), msg); err != nil {
 				srv.Log().ErrorWithFields(logger.Fields{
 					"error": err,
 				}, "Cannot publish message")

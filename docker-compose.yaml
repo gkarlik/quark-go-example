@@ -8,42 +8,37 @@ services:
     gateway:
         build: ./gateway
         ports:
+            - "8888:8888"
             - "9999:9999"
         depends_on:
             - database
             - consul
             - zipkin
-            - influxdb
 
     httpservice:
         build: ./httpservice
         ports:
             - "7777:7777"
+            - "9999:9999"
         depends_on:
             - rabbitmq
             - consul
             - zipkin
-            - influxdb
 
     rpcservice:
         build: ./rpcservice
         ports:
             - "6666:6666"
+            - "9999:9999"
         depends_on:
             - rabbitmq
             - consul
             - zipkin
-            - influxdb
 
     consul:
         image: consul
         ports:
             - "8500:8500"
-
-    influxdb: 
-        image: influxdb
-        ports:
-            - "8086:8086"
 
     zipkin:
         image: openzipkin/zipkin
@@ -51,7 +46,7 @@ services:
             - "9411:9411"
 
     rabbitmq:
-        image: rabbitmq:3.6.6-management
+        image: rabbitmq:3.6.12-management
         ports:
             - "15672:15672"
             - "5672:5672"

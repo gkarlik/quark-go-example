@@ -1,16 +1,17 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
-
 	"time"
 
 	"github.com/gkarlik/quark-go"
 	"github.com/gkarlik/quark-go/broker/rabbitmq"
 	"github.com/gkarlik/quark-go/logger"
-	"github.com/gkarlik/quark-go/metrics/influxdb"
+	"github.com/gkarlik/quark-go/metrics"
+	"github.com/gkarlik/quark-go/metrics/prometheus"
 	sd "github.com/gkarlik/quark-go/service/discovery"
 	"github.com/gkarlik/quark-go/service/discovery/consul"
 	"github.com/gkarlik/quark-go/service/trace/zipkin"
@@ -23,6 +24,10 @@ type multiplyService struct {
 	*quark.ServiceBase
 }
 
+var (
+	errorCounter metrics.Counter
+)
+
 // helper function to initialize multiplyService service
 func createMultiplyService() *multiplyService {
 	// load settings from environment variables
@@ -30,8 +35,6 @@ func createMultiplyService() *multiplyService {
 	version := quark.GetEnvVar("MULTIPLY_SERVICE_VERSION")
 	gp := quark.GetEnvVar("MULTIPLY_SERVICE_PORT")
 	discovery := quark.GetEnvVar("DISCOVERY")
-	mAddr := quark.GetEnvVar("METRICS_ADDRES")
-	mDatabase := quark.GetEnvVar("METRICS_DATABASE")
 	tAddr := quark.GetEnvVar("TRACER")
 	bAddr := quark.GetEnvVar("BROKER")
 
@@ -52,15 +55,13 @@ func createMultiplyService() *multiplyService {
 			quark.Version(version),
 			quark.Address(addr),
 			quark.Discovery(consul.NewServiceDiscovery(discovery)),
-			quark.Metrics(influxdb.NewMetricsReporter(mAddr,
-				influxdb.Database(mDatabase),
-				influxdb.Username(""),
-				influxdb.Password(""),
-			)),
+			quark.Metrics(prometheus.NewMetricsExposer()),
 			quark.Tracer(zipkin.NewTracer(tAddr, name, addr)),
 			quark.Broker(rabbitmq.NewMessageBroker(bAddr))),
 	}
 	m.Log().SetLevel(logger.DebugLevel)
+
+	errorCounter = m.Metrics().CreateCounter("error_count", "Counting errors")
 
 	return m
 }
@@ -82,11 +83,12 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/multiply/{a:[0-9]+}/{b:[0-9]+}", mulitplyHandler)
+	r.Handle("/metrics", srv.Metrics().ExposeHandler())
 
 	go func() {
 		srv.Log().Info("Waiting for incomming messages")
 
-		messages, err := srv.Broker().Subscribe("SampleTopic")
+		messages, err := srv.Broker().Subscribe(context.Background(), "SampleTopic")
 		if err != nil {
 			srv.Log().ErrorWithFields(logger.Fields{
 				"error": err,
@@ -96,7 +98,7 @@ func main() {
 		}
 		for msg := range messages {
 			srv.Log().InfoWithFields(logger.Fields{
-				"topic": msg.Key,
+				"topic": msg.Topic,
 				"value": string(msg.Value.([]byte)),
 			}, "Message received")
 		}
@@ -106,7 +108,7 @@ func main() {
 		"addr": srv.Info().Address.String(),
 	}, "Service initialized. Listening for incomming connections")
 
-	http.ListenAndServe(srv.Info().Address.String(), r)
+	srv.Log().Fatal(http.ListenAndServe(srv.Info().Address.String(), r))
 }
 
 // function to handle multiplication of two integers
@@ -119,7 +121,7 @@ func mulitplyHandler(w http.ResponseWriter, r *http.Request) {
 	srv.Log().Info("Executing multiply function")
 
 	if time.Now().Second()%2 == 0 {
-		quark.ReportServiceValue(srv, "errors", 1)
+		errorCounter.Inc()
 
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return

@@ -10,7 +10,7 @@ import (
 	"github.com/gkarlik/quark-go/broker"
 	"github.com/gkarlik/quark-go/broker/rabbitmq"
 	"github.com/gkarlik/quark-go/logger"
-	"github.com/gkarlik/quark-go/metrics/influxdb"
+	"github.com/gkarlik/quark-go/metrics/prometheus"
 	sd "github.com/gkarlik/quark-go/service/discovery"
 	"github.com/gkarlik/quark-go/service/discovery/consul"
 	gRPC "github.com/gkarlik/quark-go/service/rpc/grpc"
@@ -31,8 +31,6 @@ func createSumService() *sumService {
 	version := quark.GetEnvVar("SUM_SERVICE_VERSION")
 	gp := quark.GetEnvVar("SUM_SERVICE_PORT")
 	discovery := quark.GetEnvVar("DISCOVERY")
-	mAddr := quark.GetEnvVar("METRICS_ADDRES")
-	mDatabase := quark.GetEnvVar("METRICS_DATABASE")
 	tAddr := quark.GetEnvVar("TRACER")
 	bAddr := quark.GetEnvVar("BROKER")
 
@@ -53,11 +51,7 @@ func createSumService() *sumService {
 			quark.Version(version),
 			quark.Address(addr),
 			quark.Discovery(consul.NewServiceDiscovery(discovery)),
-			quark.Metrics(influxdb.NewMetricsReporter(mAddr,
-				influxdb.Database(mDatabase),
-				influxdb.Username(""),
-				influxdb.Password(""),
-			)),
+			quark.Metrics(prometheus.NewMetricsExposer()),
 			quark.Tracer(zipkin.NewTracer(tAddr, name, addr)),
 			quark.Broker(rabbitmq.NewMessageBroker(bAddr))),
 	}
@@ -131,6 +125,10 @@ func main() {
 	defer func() {
 		server.Dispose()
 		srv.Dispose()
+	}()
+
+	go func() {
+		srv.Metrics().Expose()
 	}()
 
 	go func() {

@@ -162,10 +162,10 @@ func main() {
 	r.Handle("/metrics", srv.Metrics().ExposeHandler())
 
 	srv.Log().InfoWithFields(logger.Fields{
-		"addr": srv.Info().Address.String(),
+		"addr": srv.Info().Address.Host,
 	}, "Service initialized. Listening for incomming connections")
 
-	srv.Log().Fatal(http.ListenAndServe(srv.Info().Address.String(), r))
+	srv.Log().Fatal(http.ListenAndServe(srv.Info().Address.Host, r))
 }
 
 // function to handle call to RPC service to sum two integers

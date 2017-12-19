@@ -194,7 +194,7 @@ func sumHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// connect to RPC service
-	conn, err := grpc.Dial(url.String(), grpc.WithInsecure())
+	conn, err := grpc.Dial(url.Host, grpc.WithInsecure())
 	if err != nil {
 		srv.Log().Error(err)
 
@@ -253,7 +253,7 @@ func multiplyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if url != nil {
 		// call HTTP service and pass request tracing span to it
-		data, err := quark.CallHTTPService(srv, http.MethodGet, fmt.Sprintf("http://%s/multiply/%d/%d", url.String(), a, b), nil, span)
+		data, err := quark.CallHTTPService(srv, http.MethodGet, fmt.Sprintf("http://%s/multiply/%d/%d", url.Host, a, b), nil, span)
 		if err != nil {
 			srv.Log().Error(err)
 
